@@ -9,9 +9,6 @@
 #import "MyScene.h"
 #import "flower_1.h"
 #import "flower_2.h"
-#import "flower_3.h"
-#import "flower_4.h"
-#import "flower_5.h"
 #import "SKEase.h"
 
 @interface MyScene()
@@ -22,11 +19,8 @@
 @property (nonatomic, strong) SKNode *ground;
 @property (nonatomic, strong) SKNode *garden;
 @property (nonatomic, strong) SKNode *camera;
+@property (nonatomic, strong) SKNode *ghostButterfly;
 @property (nonatomic, strong) NSMutableArray* flowerArray;
-@property (nonatomic, strong) NSMutableArray* rndPosPool;
-
-
-@property (nonatomic, strong) SKNode* world;
 
 @end
 
@@ -37,41 +31,47 @@
         /* Setup your scene here */
         
         self.physicsWorld.gravity = CGVectorMake(0.0f, -10.0f);
+        NSLog(@"SKScene:initWithSize %f x %f",size.width,size.height);
         self.backgroundColor = [SKColor colorWithRed:0.15 green:0.15 blue:0.3 alpha:1.0];
         
-         NSLog(@"SKScene:initWithSize %f x %f",size.width,size.height);
-        
-        //[self initGardenWithWidth:1000];
-        [self initWorld];
+        [self initGardenWithWidth:1000];
+        [self addButterfly];
     }
     return self;
 }
 
-- (void)initWorld {
+- (void)initGardenWithWidth:(CGFloat)gwidth {
+    
     // set clouds
-    self.backgroundNode = [SKSpriteNode spriteNodeWithImageNamed:@"backgroundG.png"];
+    self.backgroundNode = [SKSpriteNode spriteNodeWithImageNamed:@"cloud2048.png"];
     self.backgroundNode.position = CGPointMake(self.size.width/2, self.size.height/2);
     [self addChild:self.backgroundNode];
     
-    self.world = [[SKNode alloc] init];
-    [self addChild:self.world];
+    self.garden = [SKNode node];
+    [self addChild:self.garden];
     
     self.camera = [SKNode node];
-    [self.world addChild:self.camera];
+    self.camera.position = CGPointMake(self.size.width/2, 0);
+    [self.garden addChild:self.camera];
     
-    // fill pos pool
-    self.rndPosPool = [@[] mutableCopy];
-    for (int i =0 ; i < 10000; i += 100) {
-        [self.rndPosPool addObject:[NSNumber numberWithInt:i]];
+    self.ground = [[SKNode alloc] init];
+    self.ground.physicsBody = [SKPhysicsBody bodyWithRectangleOfSize:CGSizeMake(gwidth, 50.0f)];
+    self.ground.physicsBody.dynamic = NO;
+    
+    [self.garden addChild:self.ground];
+    self.ground.position = CGPointMake(self.frame.size.width/2, 0);
+    
+    for (int i=0; i < 10; i++) {
+        flower_1* fl1 = [[flower_1 alloc] initWithGround:self.ground atPoint:CGPointMake(100*i, self.ground.position.y) inScene:self inNode:self.garden];
+        [self.flowerArray addObject:fl1];
     }
-    
-    [self initGardenWithWidth:10000];
-    [self addButterfly];
 }
 
 - (void)addButterfly {
-    
     self.butterfly = [SKSpriteNode spriteNodeWithImageNamed:@"butterfly2.png"];
+    self.butterfly.position = CGPointMake(self.frame.size.width/2, self.size.height/2);
+    
+    [self addChild:self.butterfly];
     
     self.butterfly.physicsBody = [SKPhysicsBody bodyWithCircleOfRadius:self.butterfly.frame.size.width/10];
     self.butterfly.physicsBody.friction = 10.0f;
@@ -79,9 +79,6 @@
     self.butterfly.physicsBody.linearDamping = 5.0f;
     self.butterfly.physicsBody.allowsRotation = NO;
     self.butterfly.physicsBody.mass = 1;
-    
-    [self.world addChild:self.butterfly];
-    self.butterfly.position = CGPointMake(self.frame.size.width/2, self.size.height/2);
     
     NSMutableArray *textures = [NSMutableArray arrayWithCapacity:10];
     for (int i = 1; i < 11; i++)
@@ -92,53 +89,19 @@
     }
     self.spriteAnimation = [SKAction animateWithTextures:textures timePerFrame:0.03];
     
+    self.ghostButterfly = [SKNode node];
+    self.ghostButterfly.physicsBody = [SKPhysicsBody bodyWithCircleOfRadius:self.butterfly.frame.size.width/10];
+    self.ghostButterfly.physicsBody.friction = 10.0f;
+    self.ghostButterfly.physicsBody.restitution = 0.1f;
+    self.ghostButterfly.physicsBody.linearDamping = 5.0f;
+    self.ghostButterfly.physicsBody.allowsRotation = NO;
+    self.ghostButterfly.physicsBody.mass = 1;
+    
+    self.ghostButterfly.physicsBody.affectedByGravity = NO;
+    self.ghostButterfly.position = CGPointMake(self.butterfly.position.x, -500);
+    
+    [self addChild:self.ghostButterfly];
 }
-
-- (void)initGardenWithWidth:(CGFloat)gwidth {
-    
-    self.ground = [[SKNode alloc] init];
-    self.ground.physicsBody = [SKPhysicsBody bodyWithRectangleOfSize:CGSizeMake(gwidth, 50.0f)];
-    self.ground.physicsBody.dynamic = NO;
-    [self.world addChild:self.ground];
-    
-    self.ground.position = CGPointMake(self.frame.size.width/2, 0);
-    
-    // add flowers
-    [self addFlowers:30 gWidth:gwidth];
-}
-
-- (void)addFlowers:(int)count gWidth:(CGFloat)gWidth{
-    
-    for (int i=0; i < count; i++) {
-        int rndValue = 1 + arc4random() % 4;
-        
-        SKSpriteNode* flower;
-        if (rndValue == 1) {
-            flower = [[flower_1 alloc] initWithGround:self.ground atPoint:CGPointMake([[self getRndFlowerPosWithRange] floatValue], self.ground.position.y) inScene:self inNode:self.world];
-        } else if (rndValue == 2) {
-            flower = [[flower_2 alloc] initWithGround:self.ground atPoint:CGPointMake([[self getRndFlowerPosWithRange] floatValue], self.ground.position.y) inScene:self inNode:self.world];
-        } else if (rndValue == 3) {
-            flower = [[flower_3 alloc] initWithGround:self.ground atPoint:CGPointMake([[self getRndFlowerPosWithRange] floatValue], self.ground.position.y) inScene:self inNode:self.world];
-        } else if (rndValue == 4) {
-            flower = [[flower_4 alloc] initWithGround:self.ground atPoint:CGPointMake([[self getRndFlowerPosWithRange] floatValue], self.ground.position.y) inScene:self inNode:self.world];
-        } else if (rndValue == 5) {
-            flower = [[flower_5 alloc] initWithGround:self.ground atPoint:CGPointMake([[self getRndFlowerPosWithRange] floatValue], self.ground.position.y) inScene:self inNode:self.world];
-        }
-        
-        [self.flowerArray addObject:flower];
-    }
-    
-}
-
-- (NSNumber*)getRndFlowerPosWithRange {
-    
-    int randomIndex= random()%[self.rndPosPool count];
-    NSNumber* randomNumber=[self.rndPosPool objectAtIndex: randomIndex];
-    [self.rndPosPool removeObjectAtIndex: randomIndex];
-    
-    return randomNumber;
-}
-
 
 -(void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event {
     /* Called when a touch begins */
@@ -152,7 +115,7 @@
 }
 
 -(void)flyButterfly:(CGPoint)touchLocation {
-    CGFloat flyDirection = (touchLocation.x - self.frame.size.width/2);
+    CGFloat flyDirection = (touchLocation.x - self.butterfly.frame.origin.x - self.butterfly.frame.size.width/2);
     SKAction* action;
     
     CGFloat flyStep;
@@ -176,18 +139,29 @@
     self.butterfly.physicsBody = self.butterfly.physicsBody;
     CGVector flyImpulse;
     
+    CGVector ghostImpulse;
+    CGVector butterflyImulse;
+    
+    //flyDirection = 0;
+    //[self.garden runAction:action];
+    
     if (self.butterfly.frame.origin.y < 450) {
         flyImpulse = CGVectorMake(flyDirection, 400.0f);
+        ghostImpulse = CGVectorMake(flyDirection, 0);
+        butterflyImulse = CGVectorMake(0, 400.0f);
     } else {
         flyImpulse = CGVectorMake(flyDirection, 200.0f);
+        ghostImpulse = CGVectorMake(flyDirection, 0);
+        butterflyImulse = CGVectorMake(0, 200.0f);
     }
     
-    [self.butterfly.physicsBody applyImpulse:flyImpulse];
+    [self.butterfly.physicsBody applyImpulse:butterflyImulse];
+    [self.ghostButterfly.physicsBody applyImpulse:ghostImpulse];
 }
 
 - (void)didSimulatePhysics
 {
-    self.camera.position = CGPointMake(self.butterfly.position.x-self.frame.size.width/2, self.camera.position.y);
+    self.camera.position = CGPointMake(self.ghostButterfly.position.x, self.camera.position.y);
     [self centerOnNode:self.camera];
 }
 
@@ -198,3 +172,4 @@
 }
 
 @end
+
